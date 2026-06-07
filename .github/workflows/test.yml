@@ -12,6 +12,7 @@ jobs:
         uses: ./
         with:
           path: test/fixtures/clean
+          version: "0.7.0"
       - name: assert clean fixture passes with 0 violations
         run: |
           test "${{ steps.anma.outputs.violations }}" = "0" \
@@ -27,6 +28,7 @@ jobs:
         continue-on-error: true   # we EXPECT the action to fail here
         with:
           path: test/fixtures/violating
+          version: "0.7.0"
       - name: assert the action failed on the violation
         run: |
           test "${{ steps.anma.outcome }}" = "failure" \
@@ -45,6 +47,7 @@ jobs:
         uses: ./
         with:
           path: test/fixtures/violating
+          version: "0.7.0"
           warn-only: "true"
       - name: assert warn-only annotates but does NOT fail
         run: |
