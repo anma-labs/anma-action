@@ -1,0 +1,8 @@
+name: accounts
+summary: User accounts and authentication.
+public:
+  - accounts.service.get_user
+  - accounts.service.authenticate
+depends_on: []
+invariants:
+  - Password hashes never leave this module.

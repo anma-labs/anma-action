@@ -1,0 +1,53 @@
+name: test
+on:
+  push:
+  pull_request:
+
+jobs:
+  clean-passes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: anma
+        uses: ./
+        with:
+          path: test/fixtures/clean
+      - name: assert clean fixture passes with 0 violations
+        run: |
+          test "${{ steps.anma.outputs.violations }}" = "0" \
+            || { echo "expected 0 violations on the clean fixture"; exit 1; }
+          echo "clean fixture passed as expected"
+
+  violating-fails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: anma
+        uses: ./
+        continue-on-error: true   # we EXPECT the action to fail here
+        with:
+          path: test/fixtures/violating
+      - name: assert the action failed on the violation
+        run: |
+          test "${{ steps.anma.outcome }}" = "failure" \
+            || { echo "expected the action to FAIL on a boundary violation"; exit 1; }
+          v="${{ steps.anma.outputs.violations }}"
+          if [ -n "$v" ]; then
+            test "$v" -ge 1 || { echo "expected >=1 violation, got $v"; exit 1; }
+          fi
+          echo "violating fixture failed as expected (violations=$v)"
+
+  violating-warn-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: anma
+        uses: ./
+        with:
+          path: test/fixtures/violating
+          warn-only: "true"
+      - name: assert warn-only annotates but does NOT fail
+        run: |
+          test "${{ steps.anma.outputs.violations }}" -ge 1 \
+            || { echo "expected warn-only to still report >=1 violation"; exit 1; }
+          echo "warn-only reported violations without failing the job"

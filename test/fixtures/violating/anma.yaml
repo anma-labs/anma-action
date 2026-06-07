@@ -1,0 +1,5 @@
+# ANMA project config. Modules are discovered from per-directory anma.yaml files.
+schema_version: 1
+source_roots:        # one or more; supports monorepos
+  - src
+python_version: "3.10"

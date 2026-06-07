@@ -1,0 +1,8 @@
+name: billing
+summary: Invoices and payment processing.
+public:
+  - billing.service.create_invoice
+depends_on:
+  - accounts            # billing may use accounts' public interface
+invariants:
+  - Never store raw card numbers.

@@ -1,0 +1,15 @@
+source_roots = ["src"]
+
+[[modules]]
+path = "domains.accounts"
+depends_on = []
+[[interfaces]]
+expose = ["domains.accounts.service.get_user", "domains.accounts.service.authenticate"]
+from = ["domains.accounts"]
+
+[[modules]]
+path = "domains.billing"
+depends_on = ["domains.accounts"]
+[[interfaces]]
+expose = ["domains.billing.service.create_invoice"]
+from = ["domains.billing"]

@@ -1,0 +1,106 @@
+name: "ANMA boundary check"
+description: "Enforce module-dependency boundaries for AI-assisted code (Python, Go, TypeScript) in CI."
+author: "ANMA Labs"
+branding:
+  icon: "shield"
+  color: "green"
+
+inputs:
+  path:
+    description: "Project directory to check (the dir containing anma.yaml)."
+    required: false
+    default: "."
+  version:
+    description: "anma version to install from PyPI (e.g. 0.7.0). Default: latest."
+    required: false
+    default: ""
+  python-version:
+    description: "Python version used to run anma."
+    required: false
+    default: "3.12"
+  extras:
+    description: "Optional anma extras to install, e.g. 'tach'. Default: none (builtin engine)."
+    required: false
+    default: ""
+  sync-check:
+    description: "Also verify generated artifacts are in sync with the contracts (anma sync --check)."
+    required: false
+    default: "true"
+  warn-only:
+    description: "Annotate but do not fail the job (useful for gradual adoption)."
+    required: false
+    default: "false"
+
+outputs:
+  violations:
+    description: "Number of disallowed cross-module imports found."
+    value: ${{ steps.annotate.outputs.violations }}
+  contract-errors:
+    description: "Number of contract errors found."
+    value: ${{ steps.annotate.outputs.contract-errors }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install anma
+      shell: bash
+      run: |
+        spec="anma"
+        if [ -n "${{ inputs.extras }}" ]; then spec="anma[${{ inputs.extras }}]"; fi
+        if [ -n "${{ inputs.version }}" ]; then spec="${spec}==${{ inputs.version }}"; fi
+        echo "Installing ${spec}"
+        python -m pip install --upgrade pip >/dev/null
+        python -m pip install "${spec}"
+        anma --version
+
+    - name: Check artifacts are in sync (anma sync --check)
+      if: ${{ inputs.sync-check == 'true' }}
+      shell: bash
+      run: |
+        if ! anma sync --check "${{ inputs.path }}"; then
+          if [ "${{ inputs.warn-only }}" = "true" ]; then
+            echo "::warning title=ANMA sync::generated artifacts are out of date with the contracts. Run \`anma sync\` and commit."
+          else
+            echo "::error title=ANMA sync::generated artifacts are out of date with the contracts. Run \`anma sync\` and commit."
+          fi
+          echo "ANMA_SYNC_DRIFT=1" >> "$GITHUB_ENV"
+        fi
+        exit 0   # tolerant: the gate step decides pass/fail
+
+    - name: Check boundaries (anma check --json)
+      shell: bash
+      run: |
+        anma check "${{ inputs.path }}" --json > "$RUNNER_TEMP/anma.json" 2>"$RUNNER_TEMP/anma.err" || true
+        if [ ! -s "$RUNNER_TEMP/anma.json" ]; then
+          echo "::error title=ANMA::anma check produced no output:"; cat "$RUNNER_TEMP/anma.err" || true
+        fi
+
+    - name: Annotate findings
+      id: annotate
+      shell: bash
+      env:
+        ANMA_PATH: ${{ inputs.path }}
+        ANMA_WARN_ONLY: ${{ inputs.warn-only }}
+      run: |
+        python "${{ github.action_path }}/scripts/annotate.py" "$RUNNER_TEMP/anma.json" || true
+
+    - name: Gate
+      shell: bash
+      run: |
+        v="${{ steps.annotate.outputs.violations }}"
+        ce="${{ steps.annotate.outputs.contract-errors }}"
+        drift="${ANMA_SYNC_DRIFT:-0}"
+        if [ "${{ inputs.warn-only }}" = "true" ]; then
+          echo "warn-only: not failing the job (violations=$v, contract-errors=$ce, sync-drift=$drift)."
+          exit 0
+        fi
+        if [ "$v" != "0" ] || [ "$ce" != "0" ] || [ "$drift" = "1" ]; then
+          echo "ANMA check failed (violations=$v, contract-errors=$ce, sync-drift=$drift)."
+          exit 1
+        fi
+        echo "ANMA check passed."
