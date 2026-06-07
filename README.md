@@ -1,5 +1,9 @@
 # ANMA boundary check — GitHub Action
 
+[![Marketplace](https://img.shields.io/badge/Marketplace-ANMA%20boundary%20check-2ea44f?logo=github)](https://github.com/marketplace/actions/anma-boundary-check)
+[![test](https://github.com/anma-labs/anma-action/actions/workflows/test.yml/badge.svg)](https://github.com/anma-labs/anma-action/actions/workflows/test.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 Enforce module-dependency boundaries for AI-assisted code in CI — for **Python, Go,
 and TypeScript** projects — with one step and no local Python setup.
 
